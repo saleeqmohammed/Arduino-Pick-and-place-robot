@@ -1,4 +1,5 @@
 //Author:Mohammed Saleeq K
+//https://github.com/saleeqmohammed/Arduino-Pick-and-place-robot
 //20:05:2022
 #include<Servo.h>
 #include<LiquidCrystal.h>
@@ -6,6 +7,7 @@
 void cls_read(void);
 void AutoCalibrate(void);
 void Run(void);
+void ManualCalibrate(void);
 int find_min(int a,int b,int c){
 if(a<b){if(a<c){return 0;}else{return 2;}}else{if(b<c){return 1;}else{return 2;}}
 }
@@ -81,7 +83,7 @@ lcd.setCursor(0,0);
 lcd.print("Starting...");
 //prompt user
  Serial.println("Select Mode:");
- Serial.println("1.Calibrate 2.Run");
+ Serial.println("1.AutoCalibration 2.Run 3.ManualCalibration");
 }
 
 //Mainloop
@@ -106,6 +108,9 @@ void loop() {
   }else if(inputString[0]=='2'){
     //Run
     Run();
+    }else if(inputString[0]=='3'){
+    //ManualCalibrate
+    ManualCalibrate();
     }else{
       lcd.clear();
       lcd.setCursor(0,0);
@@ -115,7 +120,7 @@ void loop() {
       
       }
  Serial.println("Select Mode:");
- Serial.println("1.Calibrate 2.Run");
+ Serial.println("1.AutoCalibration 2.Run 3.ManualCalibration");
  inputString="";
  stringComplete=false;
  
@@ -124,13 +129,19 @@ void loop() {
     lcd.setCursor(0,0);
     lcd.print("Select Mode:");
     lcd.setCursor(0,1);
-    lcd.print("1.Calibrate");
+    lcd.print("1.AutoCalibration");
     delay(MenuDelay); 
    lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("Select Mode:");
     lcd.setCursor(0,1);
     lcd.print("2.Run");
+    delay(MenuDelay);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Select Mode:");
+    lcd.setCursor(0,1);
+    lcd.print("3.ManualCalibration");
     delay(MenuDelay);
 
   }
@@ -159,6 +170,13 @@ void AutoCalibrate(){
     Serial.print("To reduce: ");
     Serial.println(primary_colors[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
     cls_read();
+    lcd.setCursor(0,1);
+    lcd.print("R:");
+    lcd.print(cls_reflect_r);
+    lcd.print("G:");
+    lcd.print(cls_reflect_g);
+    lcd.print("B:");
+    lcd.print(cls_reflect_b);
     
   }
 
@@ -343,6 +361,32 @@ void Run(void){
   baseServo.write(home);
   armServo.write(home);
   delay(500);
+}
+
+void ManualCalibrate(){
+  //Position servo on white
+  baseServo.write(ref_white);
+  delay(500);
+  stringComplete=false;
+  inputString="";
+  while(!stringComplete&&inputString!="s\n"){
+  //Read reflections
+  cls_read();
+  //update lcd
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Reflected:");
+  lcd.setCursor(0,1);
+  lcd.print("R:");
+  lcd.print(cls_reflect_r);
+  lcd.print("G:");
+  lcd.print(cls_reflect_g);
+  lcd.print("B:");
+  lcd.print(cls_reflect_b);
+  //adjust potentiometers manually
+  }
+  
+
 }
 void serialEvent() {
   while (Serial.available()) {
