@@ -1,6 +1,7 @@
 //Author:Mohammed Saleeq K
 //https://github.com/saleeqmohammed/Arduino-Pick-and-place-robot
 //20:05:2022
+
 #include<Servo.h>
 #include<LiquidCrystal.h>
 //Function initiations
@@ -8,19 +9,25 @@ void cls_read(void);
 void AutoCalibrate(void);
 void Run(void);
 void ManualCalibrate(void);
-int find_min(int a,int b,int c){
+
+int find_min_helper(int a,int b,int c){
 if(a<b){if(a<c){return 0;}else{return 2;}}else{if(b<c){return 1;}else{return 2;}}
 }
+int find_min(int a,int b, int c){
+ if( b<330){return 4;}else if(b>826){
+   return 3;
+ }else{
+   return find_min_helper(a,b,c);
+ }
+}
+
 
 //lowering rate
 int da =1;
 //Pickup/drop strip
 const int home=90;
-const int pickup_strip=120;
-const int red_zone =180;
-const int green_zone =130;
-const int blue_zone=40;
-const int drop_strip[3]={red_zone,green_zone,blue_zone};
+const int pickup_strip=178;
+
 String inputString="";
 bool stringComplete=false;
 Servo baseServo;
@@ -54,7 +61,7 @@ int cls_Inty[3]={255,255,255};
 int err_lim=10;
 int dInty=3;
 int cls_reflect_r,cls_reflect_g,cls_reflect_b=0;
-String primary_colors[3] ={"Red","Green","Blue"};
+String primary_colors[5] ={"Red","Green","Blue","Black","White"};
 //Servo presets
 int armAngle=90;
 
@@ -103,7 +110,6 @@ void loop() {
   cls_reflect_r=255;
   cls_reflect_b=255;
   cls_reflect_g=255;
-
   AutoCalibrate();
   }else if(inputString[0]=='2'){
     //Run
@@ -166,9 +172,9 @@ void AutoCalibrate(){
   cls_read();
 
   while(!balance_check(cls_reflect_r,cls_reflect_g,cls_reflect_b)){
-    cls_Inty[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]-=dInty;
+    cls_Inty[find_min_helper(cls_reflect_r,cls_reflect_g,cls_reflect_b)]-=dInty;
     Serial.print("To reduce: ");
-    Serial.println(primary_colors[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
+    Serial.println(primary_colors[find_min_helper(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
     cls_read();
     lcd.setCursor(0,1);
     lcd.print("R:");
@@ -186,24 +192,24 @@ void AutoCalibrate(){
   baseServo.write(ref_white);
   delay(500);
   cls_read();
-  Serial.println("White");
+  Serial.println(primary_colors[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Color:");
   lcd.setCursor(0,1);
-  lcd.print("White");
+  lcd.print(primary_colors[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
 
   //position over black
   Serial.println("On black");
   baseServo.write(ref_black);
   delay(500);
   cls_read();
-  Serial.println("Black");
+  Serial.println(primary_colors[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Color:");
   lcd.setCursor(0,1);
-  lcd.print("Black");
+  lcd.print(primary_colors[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
    //position over blue
   Serial.println("On Blue");
   baseServo.write(ref_blue);
@@ -229,12 +235,13 @@ void AutoCalibrate(){
   baseServo.write(ref_red);
   delay(500);
   cls_read();
+  lcd.clear();
   Serial.println(primary_colors[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
   lcd.setCursor(0,0);
   lcd.print("Color:");
   lcd.setCursor(0,1);
   lcd.print(primary_colors[find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)]);
- 
+  delay(600);
  
 }
 
@@ -272,6 +279,7 @@ void cls_read(void){
  
   delay(30);  
 }
+
 void Run(void){
   //update lcd
   lcd.clear();
@@ -296,7 +304,7 @@ void Run(void){
   lcd.setCursor(0,0);
   lcd.print("Color detected:");
   lcd.setCursor(0,1);
-  int clr_idx=find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b);
+  int clr_idx=find_min_helper(cls_reflect_r,cls_reflect_g,cls_reflect_b);
   lcd.print(primary_colors[clr_idx]);
   Serial.println(primary_colors[clr_idx]);
   delay(600);
@@ -306,7 +314,6 @@ void Run(void){
   lcd.setCursor(0,0);
   lcd.print("Picking up");
   Serial.println("Picking up");
-  baseServo.write(180-pickup_strip);
   delay(1000);
   int diff_angle=0;
   while(digitalRead(proxy_sense)){
@@ -314,7 +321,7 @@ void Run(void){
       if(diff_angle>50){diff_angle=50;
       break;
       }
-      armServo.write(armAngle- diff_angle);
+      armServo.write(armAngle+ diff_angle);
       delay(20); 
       
 
@@ -335,13 +342,43 @@ void Run(void){
   delay(1000);
   armServo.write(armAngle);
   delay(1600);
-    lcd.clear();
+   lcd.clear();
+  Serial.println("Remove card");
+  lcd.setCursor(0,0);
+  lcd.print("Remove card");
+  
+  delay(2000);
+  //update color reading
+  cls_read();
+  //update lcd
+  lcd.clear();
   Serial.println("Dropping...");
   lcd.setCursor(0,0);
   lcd.print("Dropping...");
-  baseServo.write(180-drop_strip[clr_idx]);
-  delay(1000);
-  armServo.write(armAngle-diff_angle);
+  //scan for drop color
+  int start_angle = pickup_strip;
+  Serial.println(clr_idx);
+  
+  Serial.println(find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b));
+  
+  while (find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b)!=clr_idx )
+  { 
+    cls_read();
+    Serial.println(find_min(cls_reflect_r,cls_reflect_g,cls_reflect_b));
+    baseServo.write(start_angle);
+    delay(200);
+    if(start_angle>45){
+    start_angle-=5;
+
+    }else{
+      start_angle=ref_red;
+    }
+  }
+  //center on the target patch
+  start_angle-=5;
+  baseServo.write(start_angle);
+  delay(500);
+  armServo.write(180-(armAngle-diff_angle));
   delay(1600);
   digitalWrite(EM,LOW);
   digitalWrite(11,LOW);
@@ -359,10 +396,9 @@ void Run(void){
   lcd.setCursor(0,0);
   lcd.print("Homing...");
   baseServo.write(home);
-  armServo.write(home);
+  armServo.write(180-home);
   delay(500);
 }
-
 void ManualCalibrate(){
   //Position servo on white
   baseServo.write(ref_white);
